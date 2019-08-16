@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>我的桌面</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.10/dist/vue.js"></script>
+
+    <style>
+        html, body, #app {width: 100%;height: 100%;padding: 0;margin: 0;font-size: 12px;}
+        #app {background: url("img/body_bg.jpeg") 100% center;user-select: none;}
+        .dt_content {
+            position: relative;
+            width: 100%;
+            height: calc(100% - 30px);
+            /*border: 1px solid green;*/
+        }
+        .dt_rc_div {
+            /*display: none;*/
+            position: absolute;width: 150px;background: rgba(255, 255, 255,0.9);border: 1px solid white;cursor: default;z-index: 999;
+        }
+        .dt_rc_div ul{margin: 0;padding: 0;list-style: none;}
+        .dt_rc_div li{margin: 0;padding: 0;border: 1px solid rgba(255,255,255,0.2);padding: 5px 10px;}
+        .dt_rc_div li:hover {background: #bababa;}
+        .dt_grid_div {
+            width: 100px;
+            height: 100px;
+            max-height: 150px;
+            border: 1px solid red;
+            display: inline-block;
+        }
+        .dt_icon_div {
+            position: absolute;
+            width: 60px;
+            max-height: 92px;
+            text-align: center;
+            padding: 5px;
+            border: 1px solid rgba(255,255,255,0);
+        }
+        .dt_icon_div:hover{
+            border: 1px solid rgba(255,255,255,0.8);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 3px white;
+        }
+        .dt_icon_img {
+            width: 50px;
+            height: 50px;
+        }
+        .dt_icon_title {
+            color: white;
+            text-shadow: 2px 3px 5px black;
+            width: 100%;
+            max-height: 32px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        .dt_footer {
+            height: 30px;
+            width: 100%;
+            /*border: 1px solid lightgrey;*/
+        }
+    </style>
+
+</head>
+<body>
+    <div id="app" @click="hide_rc_div" @mousemove="move_icon_div($event)">
+        <div class="dt_content" @click.right.prevent="show_rc_div">
+            <div class="dt_rc_div" :style="{top: mouse_y + 'px', left: mouse_x + 'px'}" v-show="is_rc_show">
+                <ul>
+                    <li>个性化</li>
+                    <li>刷新</li>
+                    <li @click="new_folder('folder')">新建文件夹</li>
+                    <li @click="alert_msg('show')">新建文本文档</li>
+                    <li>个性化</li>
+                </ul>
+            </div>
+            <div class="dt_icon_div" v-for="(item, i) in folders" :style="{top: item.y + 'px', left: item.x + 'px', 'z-index': item.z_index}" :_id="i"
+                 @mousedown.left.prevent="icon_div_mouse_down($event, i)"
+                 @mousemove.left.prevent="move_icon_div($event, i)"
+                 @mouseup.left.prevent="is_icon_div_mouse_down = false, is_icon_div_mouse_move = false"
+
+                 @click.left="change_icon_div_bg(i)"
+            >
+                <img class="dt_icon_img" :src="item.src">
+                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit">{{ item.title }}{{ item.title }}{{ item.title }}</div>
+            </div>
+<!--            <dt_grid v-for="i in 15" :grid_id="i" :key="i">-->
+
+<!--            </dt_grid>-->
+<!--            <div class="dt_grid_div" v-for="i in 30"></div>-->
+<!--            <dt_icon></dt_icon>-->
+        </div>
+
+        <footer class="dt_footer">this is footer</footer>
+    </div>
+
+    <script>
+        Vue.component("dt_grid", {
+            props: ["grid_id"],
+            template: "<div class='dt_grid_div' @click.right.prevent='alert_msg(grid_id)' @alert_msg='alert_msg(\"this is dblclick\")'></div>",
+            methods: {
+                alert_msg: function (d) {
+                    alert(d);
+                }
+            }
+        })
+        Vue.component("dt_icon", {
+            props: [],
+            template: "<div class='dt_icon_div' @dblclick.prevent='alert_msg(\"alert_msg\")'></div>",
+            methods: {
+                alert_msg: function (d) {
+                    alert(d);
+                }
+            }
+        })
+        var vm = new Vue({
+            el: "#app",
+            data: {
+                mouse_x: 0,
+                mouse_y: 0,
+                is_rc_show: false,
+                folders: [],
+                is_icon_div_mouse_down: false,
+                is_icon_div_mouse_move: false,
+                icon_div_down_x: 0,
+                icon_div_down_y: 0,
+                move_id: -1,
+                z_index: 1,
+            },
+            methods: {
+                alert_msg: function (d) {
+                    alert(d);
+                },
+                show_rc_div: function (e) {
+                    this.mouse_x = e.offsetX;
+                    this.mouse_y = e.offsetY;
+                    this.is_rc_show = true;
+                },
+                hide_rc_div: function () {
+                    this.is_rc_show = false;
+                },
+                new_folder: function (type) {
+                    this.folders.push({
+                        x: this.mouse_x,
+                        y: this.mouse_y,
+                        src: type == "folder" ? "img/folder.png" : "",
+                        is_icon_title_edit: false,
+                        title: "新建文件夹",
+                        z_index: this.z_index,
+                    });
+                },
+                icon_div_mouse_down: function (e, index) {
+                    this.is_icon_div_mouse_down = true;
+                    this.move_id = index;
+                    this.icon_div_down_x = e.clientX - this.folders[index].x;
+                    this.icon_div_down_y = e.clientY - this.folders[index].y;
+                    this.folders.forEach(function (item, i) {
+                        item.z_index = 1;
+                    })
+                    this.folders[index].z_index = 98;
+                },
+                move_icon_div: function (e) {
+                    let x = e.clientX - this.icon_div_down_x,
+                        y = e.clientY - this.icon_div_down_y;
+                    if(this.is_icon_div_mouse_down){
+                        this.folders[this.move_id].x = x;
+                        this.folders[this.move_id].y = y;
+                        // this.is_icon_div_mouse_move = true;
+                    }
+                },
+                change_icon_div_bg: function (i) {
+                    // alert(i);
+                }
+            }
+        })
+    </script>
+</body>
+</html>
