@@ -13,6 +13,7 @@
             position: relative;
             width: 100%;
             height: calc(100% - 30px);
+            overflow: hidden;
             /*border: 1px solid green;*/
         }
         .dt_rc_div {
@@ -31,31 +32,36 @@
         }
         .dt_icon_div {
             position: absolute;
-            width: 60px;
+            width: 80px;
             max-height: 92px;
             text-align: center;
-            padding: 5px;
+            padding: 5px 0;
             border: 1px solid rgba(255,255,255,0);
         }
         .dt_icon_div:hover{
-            border: 1px solid rgba(255,255,255,0.8);
-            background: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 0 3px white;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 3px rgba(255,255,255,0.3);
         }
         .dt_icon_img {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
         }
         .dt_icon_title {
+            text-align: center;
             color: white;
-            text-shadow: 2px 3px 5px black;
+            /*text-shadow: 2px 3px 5px black;*/
             width: 100%;
+            min-height: 16px;
             max-height: 32px;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
+            padding: 0;
+            border: none;
+            resize: none;
         }
         .dt_footer {
             height: 30px;
@@ -66,26 +72,41 @@
 
 </head>
 <body>
-    <div id="app" @click="hide_rc_div" @mousemove="move_icon_div($event)">
-        <div class="dt_content" @click.right.prevent="show_rc_div">
+    <div id="app" @click.right="hide_rc_div" @click.left="hide_rc_div" @mousemove="move_icon_div($event)">
+        <div class="dt_content" @click.right.stop.prevent="show_rc_div">
+
+            <!--桌面右键菜单-->
             <div class="dt_rc_div" :style="{top: mouse_y + 'px', left: mouse_x + 'px'}" v-show="is_rc_show">
                 <ul>
-                    <li>个性化</li>
-                    <li>刷新</li>
+                    <li @click="">个性化</li>
+                    <li @click="refresh()">刷新</li>
+                    <li @click="f5_refresh()">F5刷新</li>
                     <li @click="new_folder('folder')">新建文件夹</li>
-                    <li @click="alert_msg('show')">新建文本文档</li>
-                    <li>个性化</li>
+                    <li @click="new_folder('txt')">新建文本文档</li>
                 </ul>
             </div>
-            <div class="dt_icon_div" v-for="(item, i) in folders" :style="{top: item.y + 'px', left: item.x + 'px', 'z-index': item.z_index}" :_id="i"
-                 @mousedown.left.prevent="icon_div_mouse_down($event, i)"
+
+            <!--应用右键菜单-->
+            <div class="dt_rc_div dt_icon_rc_div" :style="{top: mouse_y + 'px', left: mouse_x + 'px'}" v-show="is_icon_rc_show">
+                <ul>
+                    <li>打开</li>
+                    <li @click.stop="edit_icon_title()">重命名</li>
+                    <li @click="delete_folder()">删除</li>
+                </ul>
+            </div>
+
+            <!--应用-->
+            <div class="dt_icon_div" v-for="(item, i) in folders" :style="{top: item.y + 'px', left: item.x + 'px', 'z-index': item.z_index, background: item.bg_color}" :_id="i" v-show="is_icon_div_show"
+
+                 @mousedown.left.stop="icon_div_mouse_down($event, i)"
                  @mousemove.left.prevent="move_icon_div($event, i)"
                  @mouseup.left.prevent="is_icon_div_mouse_down = false, is_icon_div_mouse_move = false"
 
-                 @click.left="change_icon_div_bg(i)"
+                 @click.right.stop.prevent="show_icon_rc_div($event, i)"
+                 @click.left.stop="change_icon_div_bg(i)"
             >
                 <img class="dt_icon_img" :src="item.src">
-                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit">{{ item.title }}{{ item.title }}{{ item.title }}</div>
+                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit" :style="{'text-shadow': item.text_shadow, color: item.color, background: item.title_bg_color}" @click="do_nothing()">{{ item.title }}</div>
             </div>
 <!--            <dt_grid v-for="i in 15" :grid_id="i" :key="i">-->
 
@@ -129,37 +150,61 @@
                 icon_div_down_y: 0,
                 move_id: -1,
                 z_index: 1,
+                last_choose_id: -1,
+                is_icon_title_edit:false,
+                is_icon_rc_show: false,
+                is_icon_div_show: true,
             },
             methods: {
                 alert_msg: function (d) {
                     alert(d);
                 },
                 show_rc_div: function (e) {
-                    this.mouse_x = e.offsetX;
-                    this.mouse_y = e.offsetY;
+                    this.mouse_x = e.clientX;
+                    this.mouse_y = e.clientY;
                     this.is_rc_show = true;
+                    this.is_icon_rc_show = false;
                 },
                 hide_rc_div: function () {
                     this.is_rc_show = false;
+                    this.is_icon_rc_show = false;
+                    if(this.last_choose_id != -1){
+                        this.folders[this.last_choose_id].bg_color = "rgba(255, 255, 255, 0)";
+                        this.folders[this.last_choose_id].is_choose = false;
+                        this.folders[this.last_choose_id].is_icon_title_edit = false;
+                        this.folders[this.last_choose_id].title_bg_color = "none";
+                        this.folders[this.last_choose_id].color = "white";
+                    }
                 },
                 new_folder: function (type) {
+                    // let src = ()=>{};
                     this.folders.push({
                         x: this.mouse_x,
                         y: this.mouse_y,
-                        src: type == "folder" ? "img/folder.png" : "",
+                        src: type == "folder" ? "img/folder.png" : "img/txt.png",
                         is_icon_title_edit: false,
-                        title: "新建文件夹",
+                        title: type == "folder" ? "新建文件夹" : "新建文本文档",
                         z_index: this.z_index,
+                        bg_color: "rgba(255, 255, 255, 0)",
+                        is_choose: false,
+                        text_shadow: "0 0 3px black",
+                        color: "white",
+                        title_bg_color: "none",
                     });
+                    localStorage.setItem("folders", JSON.stringify(this.folders));
                 },
                 icon_div_mouse_down: function (e, index) {
                     this.is_icon_div_mouse_down = true;
                     this.move_id = index;
                     this.icon_div_down_x = e.clientX - this.folders[index].x;
                     this.icon_div_down_y = e.clientY - this.folders[index].y;
-                    this.folders.forEach(function (item, i) {
-                        item.z_index = 1;
-                    })
+                    // this.folders.forEach(function (item, i) {
+                    //     item.z_index = 1;
+                    // })
+                    this.last_choose_id == -1 ? this.last_choose_id = index : '' ;
+
+                    this.folders[this.last_choose_id].z_index = 1;
+
                     this.folders[index].z_index = 98;
                 },
                 move_icon_div: function (e) {
@@ -171,8 +216,42 @@
                         // this.is_icon_div_mouse_move = true;
                     }
                 },
-                change_icon_div_bg: function (i) {
-                    // alert(i);
+                change_icon_div_bg: function (index) {
+                    this.last_choose_id == -1 ? this.last_choose_id = index : '' ;
+                    this.folders[index].is_choose = true;
+                    this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
+                },
+                edit_icon_title: function () {
+                    this.folders[this.last_choose_id].is_icon_title_edit = true;
+                    this.is_icon_rc_show = false;
+                    this.folders[this.last_choose_id].text_shadow = "0 0 0 black";
+                    this.folders[this.last_choose_id].color = "black";
+                    this.folders[this.last_choose_id].title_bg_color = "white";
+                },
+                show_icon_rc_div: function (e, index) {
+                    this.mouse_x = e.clientX;
+                    this.mouse_y = e.clientY;
+                    this.is_icon_rc_show = true;
+                    this.is_rc_show = false;
+                    this.last_choose_id = index;
+                    this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
+                },
+                do_nothing: function () {},
+                refresh: function () {
+                    this.is_icon_div_show = false;
+                    setTimeout(()=>{this.is_icon_div_show = true;},100);
+                },
+                f5_refresh: function () {
+                    location.reload();
+                },
+                delete_folder:function () {
+                    this.folders.splice(this.last_choose_id, 1);
+                    localStorage.setItem("folders", JSON.stringify(this.folders));
+                }
+            },
+            created() {
+                if(localStorage.getItem("folders")){
+                    this.folders = JSON.parse(localStorage.getItem("folders"));
                 }
             }
         })
