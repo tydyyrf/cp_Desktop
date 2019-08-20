@@ -35,13 +35,13 @@
             width: 80px;
             max-height: 92px;
             text-align: center;
-            padding: 5px 0;
+            padding-top: 5px;
             border: 1px solid rgba(255,255,255,0);
         }
         .dt_icon_div:hover{
-            border: 1px solid rgba(255,255,255,0.3);
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 3px rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.5);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
         .dt_icon_img {
             width: 40px;
@@ -81,6 +81,7 @@
                     <li @click="">个性化</li>
                     <li @click="refresh()">刷新</li>
                     <li @click="f5_refresh()">F5刷新</li>
+                    <li @click="sort_icon()">整理桌面</li>
                     <li @click="new_folder('folder')">新建文件夹</li>
                     <li @click="new_folder('txt')">新建文本文档</li>
                 </ul>
@@ -106,7 +107,7 @@
                  @click.left.stop="change_icon_div_bg(i)"
             >
                 <img class="dt_icon_img" :src="item.src">
-                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit" :style="{'text-shadow': item.text_shadow, color: item.color, background: item.title_bg_color}" @click="do_nothing()">{{ item.title }}</div>
+                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit" :style="{'text-shadow': item.text_shadow, color: item.color, background: item.title_bg_color}" @click.stop="do_nothing()" @mousedown.stop="do_nothing()">{{ item.title }}</div>
             </div>
 <!--            <dt_grid v-for="i in 15" :grid_id="i" :key="i">-->
 
@@ -164,17 +165,13 @@
                     this.mouse_y = e.clientY;
                     this.is_rc_show = true;
                     this.is_icon_rc_show = false;
+                    // this.last_choose_id != -1 ? this.folders[this.last_choose_id].bg_color = "rgba(255, 255, 255, 0)" : "";
+                    this.$root.init_icon_div();
                 },
                 hide_rc_div: function () {
                     this.is_rc_show = false;
                     this.is_icon_rc_show = false;
-                    if(this.last_choose_id != -1){
-                        this.folders[this.last_choose_id].bg_color = "rgba(255, 255, 255, 0)";
-                        this.folders[this.last_choose_id].is_choose = false;
-                        this.folders[this.last_choose_id].is_icon_title_edit = false;
-                        this.folders[this.last_choose_id].title_bg_color = "none";
-                        this.folders[this.last_choose_id].color = "white";
-                    }
+                    this.$root.init_icon_div();
                 },
                 new_folder: function (type) {
                     // let src = ()=>{};
@@ -191,21 +188,16 @@
                         color: "white",
                         title_bg_color: "none",
                     });
-                    localStorage.setItem("folders", JSON.stringify(this.folders));
+                    this.$root.save_in_local();
                 },
                 icon_div_mouse_down: function (e, index) {
                     this.is_icon_div_mouse_down = true;
                     this.move_id = index;
                     this.icon_div_down_x = e.clientX - this.folders[index].x;
                     this.icon_div_down_y = e.clientY - this.folders[index].y;
-                    // this.folders.forEach(function (item, i) {
-                    //     item.z_index = 1;
-                    // })
-                    this.last_choose_id == -1 ? this.last_choose_id = index : '' ;
-
-                    this.folders[this.last_choose_id].z_index = 1;
-
+                    this.last_choose_id != -1 ? this.folders[this.last_choose_id].z_index = 1 : "";
                     this.folders[index].z_index = 98;
+                    this.$root.init_icon_div();
                 },
                 move_icon_div: function (e) {
                     let x = e.clientX - this.icon_div_down_x,
@@ -213,13 +205,16 @@
                     if(this.is_icon_div_mouse_down){
                         this.folders[this.move_id].x = x;
                         this.folders[this.move_id].y = y;
-                        // this.is_icon_div_mouse_move = true;
+                        this.$root.save_in_local();
                     }
                 },
                 change_icon_div_bg: function (index) {
-                    this.last_choose_id == -1 ? this.last_choose_id = index : '' ;
+                    this.$root.init_icon_div();
+                    this.last_choose_id = index;
                     this.folders[index].is_choose = true;
                     this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
+                    this.is_icon_rc_show = false;
+                    this.$root.save_in_local();
                 },
                 edit_icon_title: function () {
                     this.folders[this.last_choose_id].is_icon_title_edit = true;
@@ -227,31 +222,49 @@
                     this.folders[this.last_choose_id].text_shadow = "0 0 0 black";
                     this.folders[this.last_choose_id].color = "black";
                     this.folders[this.last_choose_id].title_bg_color = "white";
+                    this.$root.save_in_local();
                 },
                 show_icon_rc_div: function (e, index) {
                     this.mouse_x = e.clientX;
                     this.mouse_y = e.clientY;
                     this.is_icon_rc_show = true;
                     this.is_rc_show = false;
+                    this.$root.init_icon_div();
                     this.last_choose_id = index;
                     this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
                 },
                 do_nothing: function () {},
-                refresh: function () {
-                    this.is_icon_div_show = false;
-                    setTimeout(()=>{this.is_icon_div_show = true;},100);
+                refresh: function () {this.is_icon_div_show = false;setTimeout(()=>{this.is_icon_div_show = true;},100);},
+                f5_refresh: function () {location.reload();},
+                delete_folder:function () {this.folders.splice(this.last_choose_id, 1);this.$root.save_in_local();},
+                sort_icon: function () {
+
                 },
-                f5_refresh: function () {
-                    location.reload();
+                init_icon_div: function () {
+                    if(this.last_choose_id != -1){
+                        this.folders[this.last_choose_id].bg_color = "rgba(255, 255, 255, 0)";
+                        this.folders[this.last_choose_id].is_choose = false;
+                        this.folders[this.last_choose_id].is_icon_title_edit = false;
+                        this.folders[this.last_choose_id].title_bg_color = "none";
+                        this.folders[this.last_choose_id].color = "white";
+                        this.folders[this.last_choose_id].text_shadow = "0 0 3px black";
+                    }
                 },
-                delete_folder:function () {
-                    this.folders.splice(this.last_choose_id, 1);
+                save_in_local: function () {
                     localStorage.setItem("folders", JSON.stringify(this.folders));
+                    localStorage.setItem("last_choose_id", this.last_choose_id);
                 }
             },
             created() {
                 if(localStorage.getItem("folders")){
                     this.folders = JSON.parse(localStorage.getItem("folders"));
+                    if(localStorage.getItem("last_choose_id") != -1){
+                        this.folders[localStorage.getItem("last_choose_id")].bg_color = "rgba(255,255,255,0)";
+                        this.folders[localStorage.getItem("last_choose_id")].is_choose = false;
+                        this.folders[localStorage.getItem("last_choose_id")].is_icon_title_edit = false;
+                        this.folders[localStorage.getItem("last_choose_id")].title_bg_color = "none";
+                        this.folders[localStorage.getItem("last_choose_id")].color = "white";
+                    }
                 }
             }
         })
