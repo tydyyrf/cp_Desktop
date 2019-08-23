@@ -73,7 +73,7 @@
 </head>
 <body>
     <div id="app" @click.right="hide_rc_div" @click.left="hide_rc_div" @mousemove="move_icon_div($event)">
-        <div class="dt_content" @click.right.stop.prevent="show_rc_div">
+        <div class="dt_content" ref="dt_content" @click.right.stop.prevent="show_rc_div">
 
             <!--桌面右键菜单-->
             <div class="dt_rc_div" :style="{top: mouse_y + 'px', left: mouse_x + 'px'}" v-show="is_rc_show">
@@ -97,17 +97,23 @@
             </div>
 
             <!--应用-->
-            <div class="dt_icon_div" v-for="(item, i) in folders" :style="{top: item.y + 'px', left: item.x + 'px', 'z-index': item.z_index, background: item.bg_color}" :_id="i" v-show="is_icon_div_show"
+            <div class="dt_icon_div" v-for="(item, i) in folders" :style="{top: item.y + 'px', left: item.x + 'px', 'z-index': item.z_index, background: item.bg_color}"
 
                  @mousedown.left.stop="icon_div_mouse_down($event, i)"
                  @mousemove.left.prevent="move_icon_div($event, i)"
                  @mouseup.left.prevent="is_icon_div_mouse_down = false, is_icon_div_mouse_move = false"
 
                  @click.right.stop.prevent="show_icon_rc_div($event, i)"
-                 @click.left.stop="change_icon_div_bg(i)"
+                 @click.left.stop=""
             >
                 <img class="dt_icon_img" :src="item.src">
-                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit" :style="{'text-shadow': item.text_shadow, color: item.color, background: item.title_bg_color}" @click.stop="do_nothing()" @mousedown.stop="do_nothing()">{{ item.title }}</div>
+                <div class="dt_icon_title" :contenteditable="item.is_icon_title_edit" :style="{'text-shadow': item.text_shadow, color: item.color, background: item.title_bg_color}"
+                     @mousedown.left.stop="do_nothing($event, i)"
+                     @click.right.stop.prevent="do_nothing2($event, i)"
+                     @keydown.enter="change_icon_div_title($event, i)"
+                >
+                    {{ item.title }}
+                </div>
             </div>
 <!--            <dt_grid v-for="i in 15" :grid_id="i" :key="i">-->
 
@@ -131,7 +137,7 @@
         })
         Vue.component("dt_icon", {
             props: [],
-            template: "<div class='dt_icon_div' @dblclick.prevent='alert_msg(\"alert_msg\")'></div>",
+            template: "<div></div>",
             methods: {
                 alert_msg: function (d) {
                     alert(d);
@@ -198,6 +204,11 @@
                     this.last_choose_id != -1 ? this.folders[this.last_choose_id].z_index = 1 : "";
                     this.folders[index].z_index = 98;
                     this.$root.init_icon_div();
+                    this.last_choose_id = index;
+                    this.folders[index].is_choose = true;
+                    this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
+                    this.is_icon_rc_show = false;
+                    this.$root.save_in_local();
                 },
                 move_icon_div: function (e) {
                     let x = e.clientX - this.icon_div_down_x,
@@ -209,12 +220,12 @@
                     }
                 },
                 change_icon_div_bg: function (index) {
-                    this.$root.init_icon_div();
-                    this.last_choose_id = index;
-                    this.folders[index].is_choose = true;
-                    this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
-                    this.is_icon_rc_show = false;
-                    this.$root.save_in_local();
+                    // this.$root.init_icon_div();
+                    // this.last_choose_id = index;
+                    // this.folders[index].is_choose = true;
+                    // this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
+                    // this.is_icon_rc_show = false;
+                    // this.$root.save_in_local();
                 },
                 edit_icon_title: function () {
                     this.folders[this.last_choose_id].is_icon_title_edit = true;
@@ -233,12 +244,38 @@
                     this.last_choose_id = index;
                     this.folders[index].bg_color = "rgba(255, 255, 255, 0.2)";
                 },
-                do_nothing: function () {},
+                do_nothing: function (e, index) {
+                    if(this.folders[index].is_icon_title_edit == false){
+                        this.$root.icon_div_mouse_down(e, index);
+                        // this.is_icon_div_mouse_down = false;
+                        // this.is_icon_div_mouse_move = false;
+                    }
+                },
+                do_nothing2: function (e, index) {
+                    if(this.folders[index].is_icon_title_edit == false){
+                        this.$root.show_icon_rc_div(e, index);
+                    }
+                },
                 refresh: function () {this.is_icon_div_show = false;setTimeout(()=>{this.is_icon_div_show = true;},100);},
                 f5_refresh: function () {location.reload();},
                 delete_folder:function () {this.folders.splice(this.last_choose_id, 1);this.$root.save_in_local();},
                 sort_icon: function () {
-
+                    // alert(vm.$refs.dt_content.clientHeight);
+                    let h = vm.$refs.dt_content.clientHeight,
+                        w = vm.$refs.dt_content.clientWidth,
+                        i = 1, num = parseInt(h/100);
+                    this.folders.map(function (value, index) {
+                        vm.folders[index].x = (i-1)*88;
+                        vm.folders[index].y = (index % num)*100;
+                        if(h - (index % num )*100 - 100 < 100){
+                            i += 1;
+                        }
+                    })
+                    this.$root.save_in_local();
+                },
+                change_icon_div_title: function (e, index) {
+                    this.folders[index].title = e.target.innerText;
+                    this.$root.save_in_local();
                 },
                 init_icon_div: function () {
                     if(this.last_choose_id != -1){
